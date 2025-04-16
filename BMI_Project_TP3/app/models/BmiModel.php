@@ -1,6 +1,4 @@
 <?php
-// app/models/BmiModel.php
-
 class BmiModel {
     private $db;
 
@@ -8,28 +6,40 @@ class BmiModel {
         $this->db = $database;
     }
 
-    // حفظ سجل حساب مؤشر كتلة الجسم
     public function saveBmiRecord($user_id, $name, $weight, $height, $bmi, $status) {
-        $query = "INSERT INTO bmi_records (user_id, name, weight, height, bmi, status) 
-                  VALUES (:user_id, :name, :weight, :height, :bmi, :status)";
-        $stmt = $this->db->prepare($query);
-        $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
-        $stmt->bindParam(':name', $name);
-        $stmt->bindParam(':weight', $weight);
-        $stmt->bindParam(':height', $height);
-        $stmt->bindParam(':bmi', $bmi);
-        $stmt->bindParam(':status', $status);
+        $stmt = $this->db->prepare("INSERT INTO bmi_records 
+                                  (user_id, name, weight, height, bmi, status) 
+                                  VALUES (?, ?, ?, ?, ?, ?)");
+        if (!$stmt) {
+            throw new Exception("خطأ في إعداد الاستعلام: " . $this->db->error);
+        }
         
-        return $stmt->execute();
+        $stmt->bind_param("isddds", $user_id, $name, $weight, $height, $bmi, $status);
+        
+        if (!$stmt->execute()) {
+            throw new Exception("خطأ في تنفيذ الاستعلام: " . $stmt->error);
+        }
+        
+        return true;
     }
 
-    // استرجاع تاريخ حسابات مؤشر كتلة الجسم للمستخدم
     public function getBmiHistory($user_id) {
-        $query = "SELECT * FROM bmi_records WHERE user_id = :user_id ORDER BY timestamp DESC";
-        $stmt = $this->db->prepare($query);
-        $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt = $this->db->prepare("SELECT bmi, DATE(timestamp) as date 
+                                   FROM bmi_records 
+                                   WHERE user_id = ? 
+                                   ORDER BY timestamp ASC");
+        if (!$stmt) {
+            throw new Exception("خطأ في إعداد الاستعلام: " . $this->db->error);
+        }
+        
+        $stmt->bind_param("i", $user_id);
+        
+        if (!$stmt->execute()) {
+            throw new Exception("خطأ في تنفيذ الاستعلام: " . $stmt->error);
+        }
+        
+        $result = $stmt->get_result();
+        return $result->fetch_all(MYSQLI_ASSOC);
     }
 }
 ?>

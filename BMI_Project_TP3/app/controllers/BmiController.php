@@ -1,6 +1,4 @@
 <?php
-// app/controllers/BmiController.php
-
 class BmiController {
     private $model;
 
@@ -8,44 +6,52 @@ class BmiController {
         $this->model = $model;
     }
 
-    // دالة لحساب مؤشر كتلة الجسم وحفظ النتائج
     public function calculateBmi($user_id, $name, $weight, $height) {
-        // التحقق من صحة المدخلات
-        if (empty($name) || empty($weight) || empty($height) || !is_numeric($weight) || !is_numeric($height) || $height <= 0) {
-            return ['error' => 'الرجاء التأكد من إدخال البيانات بشكل صحيح.'];
+        try {
+            // التحقق من صحة المدخلات
+            if (empty($name)) {
+                throw new Exception("الاسم مطلوب");
+            }
+            
+            if (!is_numeric($weight) || $weight <= 0) {
+                throw new Exception("الوزن يجب أن يكون رقمًا موجبًا");
+            }
+            
+            if (!is_numeric($height) || $height <= 0) {
+                throw new Exception("الطول يجب أن يكون رقمًا موجبًا");
+            }
+
+            // تحويل الطول من سم إلى متر
+            $height_in_meters = $height / 100;
+
+            // حساب BMI
+            $bmi = $weight / ($height_in_meters * $height_in_meters);
+            $status = $this->getBmiStatus($bmi);
+
+            // حفظ النتائج
+            $this->model->saveBmiRecord($user_id, $name, $weight, $height, $bmi, $status);
+
+            return [
+                'success' => true,
+                'name' => $name,
+                'weight' => $weight,
+                'height' => $height,
+                'bmi' => round($bmi, 2),
+                'status' => $status
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
         }
-
-        // حساب مؤشر كتلة الجسم (BMI)
-        $bmi = $weight / (($height / 100) ** 2); // تحويل الطول من سم إلى متر
-
-        // التفسير حسب BMI
-        if ($bmi < 18.5) {
-            $interpretation = "Underweight";
-        } elseif ($bmi >= 18.5 && $bmi < 25) {
-            $interpretation = "Normal weight";
-        } elseif ($bmi >= 25 && $bmi < 30) {
-            $interpretation = "Overweight";
-        } else {
-            $interpretation = "Obesity";
-        }
-
-        // حفظ السجل في قاعدة البيانات
-        $saved = $this->model->saveBmiRecord($user_id, $name, $weight, $height, $bmi, $interpretation);
-
-        // إرجاع البيانات للعرض
-        return [
-            'name'           => $name,
-            'weight'         => $weight,
-            'height'         => $height,
-            'bmi'            => round($bmi, 2),
-            'interpretation' => $interpretation,
-            'saved'          => $saved
-        ];
     }
 
-    // دالة لاسترجاع تاريخ الحسابات للمستخدم
-    public function getHistory($user_id) {
-        return $this->model->getBmiHistory($user_id);
+    private function getBmiStatus($bmi) {
+        if ($bmi < 18.5) return ' Underweight';
+        elseif ($bmi < 25) return 'Normal weight';
+        elseif ($bmi < 30) return ' Overweight';
+        else return ' Obesity';
     }
 }
 ?>
